@@ -1,23 +1,22 @@
+import datetime
+
+from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Card, Board, State
-from .serializers import CardSerializers, StateSerializers
+from .serializers import CardSerializers, StateSerializers, BoardSerializers
 
-# Create your views here.
 class CardViewSet(APIView):
     queryset = Card.objects.all()
     serializer_class = CardSerializers
-
-    def get(self, request, format=None):
-        print(request)
-        return Response(Card.objects.all())
 
     def post(self, request, format=None):
         board_id = request.data.get('board_id')
         boards = Board.objects.filter(id=board_id)
         if not boards.exists():
-            return Response({f'not found board by id = {board_id}'})
+            # TODO
+            return Response({f'Not found board by id = {board_id}'})
 
         board = boards[0]
         response = []
@@ -36,11 +35,84 @@ class CardViewSet(APIView):
 
         return Response({'board': {'states': response}})
 
+class CardCreateView(APIView):
+    def post(self, request):
+        board_id = request.data.get('board_id')
+        boards = Board.objects.filter(id=board_id)
+        if not boards.exists():
+            # TODO
+            return Response({f'Not found board by id = {board_id}'})
 
-class StateViewSet(APIView):
+        board = boards[0]
+
+        state_id = request.data.get('state_id')
+        states = State.objects.filter(id=state_id)
+        if not states.exists():
+            # TODO
+            return Response({f'Not found state by id = {state_id}'})
+
+        state = states[0]
+        description = request.data.get('description')
+        title = request.data.get('title')
+        created = datetime.datetime.now()
+
+        validation_data = {'state': state, 'description': description,
+                           'title': title, 'board': board,
+                           'created': created}
+
+        serializer = CardSerializers(data=validation_data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+
+        # TODO
+        return Response({f"success': 'New card created"})
+
+class StateCreateView(APIView):
+    def post(self, request):
+        board_id = request.data.get('board_id')
+        boards = Board.objects.filter(id=board_id)
+        if not boards.exists():
+            # TODO
+            return Response({f'Not found board by id = {board_id}'})
+
+        validation_data = {'board': boards[0], 'name': request.data.get('name')}
+        serializer = StateSerializers(data=validation_data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+        # TODO
+        return Response({f"success': 'New state for {boards[0].name} created"})
+
+class StatesByBoardView(APIView):
     serializer_class = StateSerializers
     queryset = State.objects.all()
 
-    @classmethod
-    def get_extra_actions(cls):
-        return []
+    def post(self, request, format=None):
+        board_id = request.data.get('board_id')
+        boards = Board.objects.filter(id=board_id)
+        if not boards.exists():
+            # TODO
+            return Response({f'Not found board by id = {board_id}'})
+
+        board = boards[0]
+
+        states = State.objects.filter(board=board)
+        states_resp = {{state.name} for state in states}
+
+        return Response({'states': states_resp})
+
+
+class BoardCreate(APIView):
+    serializer_class = BoardSerializers
+    queryset = Board.objects.all()
+
+    def post(self, request):
+        board_name = request.data.get('board_name')
+        serializer = BoardSerializers(data={'name': board_name})
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+        # TODO
+        return Response({'success': 'New board created'})
+
+class BoardViewSet(ListAPIView):
+    serializer_class = BoardSerializers
+    queryset = Board.objects.all()
